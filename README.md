@@ -18,3 +18,6 @@
 开发板上的3个独立按键k8,k7,k6控制3个家具，第一个按键k8控制LED小灯的亮灭；第二个按键k7控制舵机；第三个按键k6控制步进电机，按第一下顺时针转，模拟窗帘开，按第二下逆时针旋转，模拟窗帘关。
 
 ![image](https://github.com/zxcvbnmkj/simulation-furniture-control-based-on-51-microcontroller/assets/133875139/e74e8d22-8897-4dc7-9b24-1c610cd8feb0)
+
+### 不足之处
+蓝牙模块连接有范围限制，如果更换为wifi模块，则有效范围更广
