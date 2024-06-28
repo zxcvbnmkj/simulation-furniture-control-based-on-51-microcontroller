@@ -1,0 +1,280 @@
+C51 COMPILER V9.60.0.0   MAIN                                                              12/08/2020 22:18:14 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\output\main.obj
+COMPILER INVOKED BY: D:\2filerj\keil5ForC51\C51\BIN\C51.EXE User\main.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\User;.\P
+                    -ublic;.\GUI;.\APP\tftlcd;.\APP\touch) DEBUG OBJECTEXTEND PRINT(.\output\main.lst) TABS(2) OBJECT(.\output\main.obj)
+
+line level    source
+
+   1          /*************************************************************************************
+   2          实验现象：可以分别使用按键和手机发送数据这两种方式来控制led小灯，舵机和步进电机。
+   3          并且有一块TFT屏幕显示三种元件的状态。每按一下按键或发送一个数据，元件的状态就改变一次。
+   4          
+   5          实验说明：实验中小灯的亮灭表示家电中“电灯”的亮灭，舵机旋转90度代表家具“门”的开关
+   6          步进电机的顺时针旋转代表窗帘的拉开，逆时针旋转代表窗帘拉上。
+   7          
+   8          接线说明：
+   9          hex文件在output文件夹中
+  10          k8,k7,k6分别接P24,P23,P22。（按键部分）
+  11          P07与交通灯模块的D6连接（LED小灯部分）
+  12          舵机的VCC接开发板上5V,GND接GND。PWM线接P03（舵机部分）
+  13          步进电机的A+,A-,B+,B-分别接在J81的OA,OB,OC,OD。
+  14          IA,IB,IC,ID分别接P00,P01,P02,P03(步进电机部分)
+  15          蓝牙模块的VCC,GND分别与开发板上的5V和GND相连
+  16          TXD接P30,RXD接P31（蓝牙部分）
+  17          
+  18          注意事项：
+  19          1，一次只能按下一个按键，不能2个或3个按键同时按下。
+  20          2，通过蓝牙，手机发送“01”时电灯状态改变，发送“02”时门的状态改变
+  21          发送“03”时，窗帘状态改变。如果发送别的，蓝牙小程序接收数据区会收到
+  22          “Error!”意为发送的数据有错误，需要重新发送。
+  23          *************************************************************************************/
+  24          #include "tftlcd.h"
+  25          #include "reg52.h"
+  26          #define SPEED 1900 //修改此值可改变电机旋转速度
+  27          sbit led1=P0^7;
+  28          sbit pwm=P0^6;
+  29          sbit MOTOA = P0^0;
+  30          sbit MOTOB = P0^1;
+  31          sbit MOTOC = P0^2;
+  32          sbit MOTOD = P0^3;
+  33          sbit key1=P2^4;//k8，电灯开关
+  34          sbit key2=P2^3;//k7，门开关
+  35          sbit key3=P2^2;//k6，窗帘开关
+  36          bit g1=1,g2=1,g3=1;//1代表电器状态未改变
+  37          bit flag1=1,flag2=1,flag3=1;/*设置3个变量存储电器当前状态，为1表示电器状态为关，为0为开*/
+  38          bit f=1;/*默认为1。它为1表示接收到了手机改变电器状态的数据。只有它为1或者有按键按下时
+  39          程序才会跳出keyout函数中的循环.否则程序停在那里等待按键按下或f变为1*/
+  40          char ascii[7]={"Error!"};//若手机发送的数据错误，就向手机发送这个数组里的
+  41          unsigned char i=0;//该变量读取手机发送的数据
+  42          unsigned char jd=1;//角度标识,默认门为关
+  43          unsigned char count=0;//0.5ms次数标识，最初次数为0
+  44          void FontShow_Init();//函数声明
+  45          void Time0_Init();
+  46          void initUART();
+  47          void keyout();
+  48          void tftFontChange();
+  49          void doorChange();
+  50          void clockwise();
+  51          void antiClockwise();
+  52          void curtainChange();
+  53          void main()
+  54          {
+C51 COMPILER V9.60.0.0   MAIN                                                              12/08/2020 22:18:14 PAGE 2   
+
+  55   1        TFTLCD_Init();//初始化屏幕
+  56   1        FontShow_Init();//初始化屏幕显示
+  57   1        Time0_Init();//打开定时器0
+  58   1        initUART();//初始化串口 
+  59   1        //以下几行为电器状态初始化
+  60   1        led1=flag1;
+  61   1        //jd=1;//这一步本来要的，因为在定义变量时完成，故可省略
+  62   1        MOTOA=0;
+  63   1        MOTOB=0;
+  64   1        MOTOC=0;
+  65   1        MOTOD=0;
+  66   1        while(1)//不断检测，从而改变电器状态
+  67   1        {   
+  68   2          keyout(); 
+  69   2          tftFontChange();
+  70   2          if(g1==0){led1=flag1;g1=1;}   
+  71   2          if(g2==0){doorChange(); g2=1;}
+  72   2          if(g3==0){curtainChange();g3=1;}
+  73   2        }
+  74   1      }
+  75          void FontShow_Init()
+  76          {
+  77   1        FRONT_COLOR=RED;
+  78   1        LCD_ShowFontHZ(10,10,"电灯状态：关");
+  79   1        LCD_ShowFontHZ(10,50,"门状态：关");
+  80   1        LCD_ShowFontHZ(10,90,"窗帘状态：关"); 
+  81   1      }
+  82          void keyout()
+  83          {
+  84   1        unsigned int a;
+  85   1        key1=1;
+  86   1        key2=1;
+  87   1        key3=1;
+  88   1        while(key1==1&&key2==1&&key3==1&&f==1);//未按下则停在这
+  89   1        if(f==0)f=1;
+  90   1        if(key1==0||key2==0||key3==0)//key=0说明按键被按下了
+  91   1        {
+  92   2          for(a=0;a<1000;a++);//延时约10ms
+  93   2          if(key1==0||key2==0||key3==0)//再次检测是否真的有按键按下
+  94   2          {
+  95   3            if(key1==0){flag1=~flag1;g1=0;}
+  96   3            if(key2==0){flag2=~flag2;g2=0;}
+  97   3            if(key3==0){flag3=~flag3;g3=0;}
+  98   3          }
+  99   2          while(!(key1==1&&key2==1&&key3==1));//只要全部按键电平都为1才可通过该循环
+ 100   2          for(a=0;a<1000;a++);//延时约10ms
+ 101   2          while(!(key1==1&&key2==1&&key3==1));//再次检测
+ 102   2        }
+ 103   1      }
+ 104          void tftFontChange()
+ 105          {
+ 106   1        if(g1==0)
+ 107   1        {
+ 108   2          if(flag1==1)LCD_ShowFontHZ(170,10,"关");//开关这2个字的横坐标在170
+ 109   2          else LCD_ShowFontHZ(170,10,"开");//一个字宽32，32*5+10=170
+ 110   2        }
+ 111   1        if(g2==0)
+ 112   1        {
+ 113   2          if(flag2==1)LCD_ShowFontHZ(138,50,"关");//门状态的在138，与上同理
+ 114   2          else LCD_ShowFontHZ(138,50,"开");
+ 115   2        }
+ 116   1        if(g3==0)
+C51 COMPILER V9.60.0.0   MAIN                                                              12/08/2020 22:18:14 PAGE 3   
+
+ 117   1        {
+ 118   2          if(flag3==1)LCD_ShowFontHZ(170,90,"关");  
+ 119   2          else LCD_ShowFontHZ(170,90,"开");   
+ 120   2        }
+ 121   1      }
+ 122          void Time0_Init()          //定时器初始化
+ 123          {
+ 124   1        TMOD=0X21;//定时器0为0001，定时器1为0010。TMOD不能位寻址，所以在这里一次性赋值。   
+ 125   1        EA=1;//打开总中断
+ 126   1        ET0=1;//打开定时器0的中断
+ 127   1        TH0  = 0xfe;
+ 128   1        TL0  = 0x33; //11.0592MZ晶振，0.5ms
+ 129   1        TR0=1; //定时器开始
+ 130   1      }
+ 131          
+ 132          void initUART()//波特率9600
+ 133          {
+ 134   1        SCON=0x50;
+ 135   1        TH1=0XFA;
+ 136   1        TL1=TH1;
+ 137   1        PCON=0X80;//通过这个控制SMOD位为1
+ 138   1        ES=1;
+ 139   1        //EA=1;总中断在之前的函数Time0_Init()中已打开，所以这行注释掉
+ 140   1        ET1=0;
+ 141   1        TR1=1;
+ 142   1      }
+ 143          void doorChange()
+ 144          {
+ 145   1          if(flag2==1){jd=1;count=0;}//flag2只有0，1两个值
+ 146   1          else {jd=3;count=0;}
+ 147   1      }
+ 148          void clockwise()//步进电机顺时针旋转
+ 149          {
+ 150   1        unsigned char j;
+ 151   1        for(j=0;j<20;j++)
+ 152   1        {
+ 153   2          MOTOA = 1;
+ 154   2          MOTOB = 1;
+ 155   2          MOTOC = 0;
+ 156   2          MOTOD = 1;//-B
+ 157   2          delay_10us(SPEED);
+ 158   2          
+ 159   2          MOTOA = 0;
+ 160   2          MOTOB = 1;//-A
+ 161   2          MOTOC = 1;
+ 162   2          MOTOD = 1;
+ 163   2          delay_10us(SPEED);
+ 164   2          
+ 165   2          MOTOA = 1;
+ 166   2          MOTOB = 1;
+ 167   2          MOTOC = 1;//B
+ 168   2          MOTOD = 0;
+ 169   2          delay_10us(SPEED);
+ 170   2          
+ 171   2          MOTOA = 1;//A
+ 172   2          MOTOB = 0;
+ 173   2          MOTOC = 1;
+ 174   2          MOTOD = 1;
+ 175   2          delay_10us(SPEED);
+ 176   2        }
+ 177   1      }
+ 178          void antiClockwise()
+C51 COMPILER V9.60.0.0   MAIN                                                              12/08/2020 22:18:14 PAGE 4   
+
+ 179          {
+ 180   1        unsigned char j;
+ 181   1        for(j=0;j<20;j++)//步进电机逆时针旋转
+ 182   1        { 
+ 183   2          MOTOA = 1;//A
+ 184   2          MOTOB = 0;
+ 185   2          MOTOC = 1;
+ 186   2          MOTOD = 1;
+ 187   2          delay_10us(SPEED);
+ 188   2      
+ 189   2          MOTOA = 1;
+ 190   2          MOTOB = 1;
+ 191   2          MOTOC = 1;//B
+ 192   2          MOTOD = 0;
+ 193   2          delay_10us(SPEED);
+ 194   2      
+ 195   2          MOTOA = 0;
+ 196   2          MOTOB = 1;//-A
+ 197   2          MOTOC = 1;
+ 198   2          MOTOD = 1;
+ 199   2          delay_10us(SPEED);
+ 200   2      
+ 201   2          MOTOA = 1;
+ 202   2          MOTOB = 1;
+ 203   2          MOTOC = 0;
+ 204   2          MOTOD = 1;//-B
+ 205   2          delay_10us(SPEED);                        
+ 206   2        }
+ 207   1      }
+ 208          void curtainChange()
+ 209          {
+ 210   1          if(flag3==0)clockwise();
+ 211   1          else antiClockwise();
+ 212   1      }
+ 213          void Time0_Int() interrupt 1     //定时器0中断,TF0=1时触发，优先级比串口中断高
+ 214          {
+ 215   1        TH0  = 0xfe;                 //重新赋值
+ 216   1        TL0  = 0x33;
+ 217   1        if(count< jd)                //判断0.5ms次数是否小于角度标识
+ 218   1        pwm=1;                       //确实小于，PWM输出高电平
+ 219   1        else
+ 220   1        pwm=0;                       //大于则输出低电平
+ 221   1        count=(count+1);             //0.5ms次数加1              
+ 222   1        if(count==40){count=0;}//次数始终保持为40 即保持周期为20ms
+ 223   1      }
+ 224          void uart() interrupt 4//RI=1时触发
+ 225          {
+ 226   1        unsigned char j=0;
+ 227   1        if(RI==1)
+ 228   1        {
+ 229   2          RI=0;
+ 230   2          i=SBUF;
+ 231   2        }
+ 232   1        switch(i)
+ 233   1        {
+ 234   2          case 0x01:{flag1=~flag1;g1=0;break;}
+ 235   2          case 0x02:{flag2=~flag2;g2=0;break;}
+ 236   2          case 0x03:{flag3=~flag3;g3=0;break;}
+ 237   2          default://如果手机发送的数据有错的话，就通过蓝牙向手机发送"error!".
+ 238   2            {
+ 239   3              for(j=0;j<6;j++)
+ 240   3              {
+C51 COMPILER V9.60.0.0   MAIN                                                              12/08/2020 22:18:14 PAGE 5   
+
+ 241   4                SBUF=ascii[j];
+ 242   4                while(!TI);
+ 243   4                TI=0;
+ 244   4              }
+ 245   3            }
+ 246   2        }
+ 247   1        f=0;  
+ 248   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    714    ----
+   CONSTANT SIZE    =     43    ----
+   XDATA SIZE       =     10       2
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      7    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,8 @@
+".\output\main.obj",
+".\output\public.obj",
+".\output\uart.obj",
+".\output\tftlcd.obj",
+".\output\touch.obj",
+".\output\gui.obj" 
+TO ".\output\template" 
+PRINT(".\output\template.m51") RAMSIZE(256) 

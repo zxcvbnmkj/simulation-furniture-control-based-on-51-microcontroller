@@ -1,0 +1,901 @@
+C51 COMPILER V9.60.0.0   GUI                                                               12/08/2020 22:18:15 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE GUI
+OBJECT MODULE PLACED IN .\output\gui.obj
+COMPILER INVOKED BY: D:\2filerj\keil5ForC51\C51\BIN\C51.EXE GUI\gui.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\User;.\Pub
+                    -lic;.\GUI;.\APP\tftlcd;.\APP\touch) DEBUG OBJECTEXTEND PRINT(.\output\gui.lst) TABS(2) OBJECT(.\output\gui.obj)
+
+line level    source
+
+   1          //不会用到这个文件的代码，把它注释掉了
+   2          /*#if 1
+   3          
+   4          #include "gui.h"
+   5          
+   6          
+   7          extern code const unsigned char ascii_1206[95][12];
+   8          extern code const unsigned char ascii_1608[95][16];
+   9          extern code const unsigned char ascii_2412[95][36];
+  10          
+  11             
+  12          
+  13          //颜色转换
+  14          //rgb:32位颜色
+  15          //返回值:16位色.
+  16          u16 gui_color_chg(u32 rgb)
+  17          {
+  18            u16 r,g,b;
+  19            r=rgb>>19;
+  20            g=(rgb>>10)&0x3f;
+  21            b=(rgb>>3)&0x1f;
+  22            return ((r<<11)|(g<<5)|b);   
+  23          }
+  24          //将rgb332颜色转换为rgb565.
+  25          //rgb332:rgb332格式数据
+  26          //返回值:rgb565格式数据.
+  27          u16 gui_rgb332torgb565(u16 rgb332)
+  28          {
+  29            u16 rgb565=0x18E7;
+  30            rgb565|=(rgb332&0x03)<<3;
+  31            rgb565|=(rgb332&0x1c)<<6;
+  32            rgb565|=(rgb332&0xe0)<<8;
+  33            return rgb565;
+  34          }
+  35          //m^n函数
+  36          long gui_pow(u8 m,u8 n)
+  37          {
+  38            long result=1;   
+  39            while(n--)result*=m;    
+  40            return result;
+  41          }
+  42          //两个数的差的绝对值
+  43          u32 gui_disabs(u32 x1,u32 x2)
+  44          {
+  45            return x1>x2 ? x1-x2:x2-x1;     
+  46          }   
+  47          
+  48          //////////////////////////统一标准函数//////////////////////////////
+  49          //画点函数
+  50          //x0,y0:坐标
+  51          //color:颜色
+  52          void gui_draw_point(u16 x0,u16 y0,u16 color)
+  53          {
+  54            u16 tempcolor=FRONT_COLOR;
+C51 COMPILER V9.60.0.0   GUI                                                               12/08/2020 22:18:15 PAGE 2   
+
+  55            FRONT_COLOR=color;
+  56            LCD_DrawPoint(x0,y0);
+  57            FRONT_COLOR=tempcolor;
+  58          }
+  59          
+  60          //对指定区域进行alphablend
+  61          //x,y,width,height:区域设置
+  62          //color:alphablend的颜色
+  63          //aval:透明度(0~32)
+  64          void gui_alphablend_area(u16 x,u16 y,u16 width,u16 height,u16 color,u8 aval)
+  65          {
+  66            u16 i,j;
+  67            u16 tempcolor;
+  68            for(i=0;i<width;i++)
+  69            {
+  70              for(j=0;j<height;j++)
+  71              {
+  72                tempcolor=LCD_ReadPoint(x+i,y+j);
+  73                tempcolor=gui_alpha_blend565(tempcolor,color,aval);
+  74                LCD_DrawFRONT_COLOR(x+i,y+j,tempcolor);
+  75              }
+  76            }
+  77          }
+  78          
+  79          //画大点函数
+  80          //x0,y0:坐标
+  81          //color:颜色
+  82          //以(x0,y0)为中心,画一个9个点的大点
+  83          void gui_draw_bigpoint(u16 x0,u16 y0,u16 color)
+  84          {
+  85            u16 i,j;
+  86            u16 x,y;            
+  87            if(x0>=1)x=x0-1;
+  88            else x=x0;
+  89            if(y0>=1)y=y0-1;
+  90            else y=y0;
+  91            for(i=y;i<y0+2;i++)
+  92            {
+  93              for(j=x;j<x0+2;j++)LCD_DrawFRONT_COLOR(j,i,color);
+  94            }                
+  95          }
+  96          //画任意线
+  97          //x0,y0:起点 x1,y1:终点
+  98          //color:颜色
+  99          void gui_draw_line(u16 x0,u16 y0,u16 x1,u16 y1,u16 color)
+ 100          {
+ 101            u16 t; 
+ 102            int xerr=0,yerr=0,delta_x,delta_y,distance; 
+ 103            int incx,incy,uRow,uCol; 
+ 104          
+ 105            delta_x=x1-x0; //计算坐标增量 
+ 106            delta_y=y1-y0; 
+ 107            uRow=x0; 
+ 108            uCol=y0; 
+ 109            if(delta_x>0)incx=1; //设置单步方向 
+ 110            else if(delta_x==0)incx=0;//垂直线 
+ 111            else {incx=-1;delta_x=-delta_x;} 
+ 112            if(delta_y>0)incy=1; 
+ 113            else if(delta_y==0)incy=0;//水平线 
+ 114            else{incy=-1;delta_y=-delta_y;} 
+ 115            if( delta_x>delta_y)distance=delta_x; //选取基本增量坐标轴 
+ 116            else distance=delta_y; 
+C51 COMPILER V9.60.0.0   GUI                                                               12/08/2020 22:18:15 PAGE 3   
+
+ 117            for(t=0;t<=distance+1;t++ )//画线输出 
+ 118            {  
+ 119              LCD_DrawFRONT_COLOR(uRow,uCol,color);//画点 
+ 120              xerr+=delta_x ; 
+ 121              yerr+=delta_y ; 
+ 122              if(xerr>distance) 
+ 123              { 
+ 124                xerr-=distance; 
+ 125                uRow+=incx; 
+ 126              } 
+ 127              if(yerr>distance) 
+ 128              { 
+ 129                yerr-=distance; 
+ 130                uCol+=incy; 
+ 131              } 
+ 132            }          
+ 133          }
+ 134          //画一条粗线(方法0)
+ 135          //(x1,y1),(x2,y2):线条的起止坐标
+ 136          //size：线条的粗细程度
+ 137          //color：线条的颜色
+ 138          void gui_draw_bline(u16 x1, u16 y1, u16 x2, u16 y2,u8 size,u16 color)
+ 139          {
+ 140            u16 t; 
+ 141            int xerr=0,yerr=0,delta_x,delta_y,distance; 
+ 142            int incx,incy,uRow,uCol; 
+ 143            if(x1<size|| x2<size||y1<size|| y2<size)return;
+ 144            if(size==0){LCD_DrawFRONT_COLOR(x1,y1,color);return;} 
+ 145            delta_x=x2-x1; //计算坐标增量 
+ 146            delta_y=y2-y1; 
+ 147            uRow=x1; 
+ 148            uCol=y1; 
+ 149            if(delta_x>0)incx=1; //设置单步方向 
+ 150            else if(delta_x==0)incx=0;//垂直线 
+ 151            else {incx=-1;delta_x=-delta_x;} 
+ 152            if(delta_y>0)incy=1; 
+ 153            else if(delta_y==0)incy=0;//水平线 
+ 154            else{incy=-1;delta_y=-delta_y;} 
+ 155            if( delta_x>delta_y)distance=delta_x; //选取基本增量坐标轴 
+ 156            else distance=delta_y; 
+ 157            for(t=0;t<=distance+1;t++ )//画线输出 
+ 158            {  
+ 159              gui_fill_circle(uRow,uCol,size,color);//画点 
+ 160              xerr+=delta_x ; 
+ 161              yerr+=delta_y ; 
+ 162              if(xerr>distance){xerr-=distance;uRow+=incx;}  
+ 163              if(yerr>distance){yerr-=distance;uCol+=incy;}
+ 164            }  
+ 165          } 
+ 166          
+ 167          //画一条粗线(方法1)
+ 168          //x0,y0:起点 x1,y1:终点
+ 169          //size:线粗细,仅支持:0~2.
+ 170          //color:颜色
+ 171          void gui_draw_bline1(u16 x0,u16 y0,u16 x1,u16 y1,u8 size,u16 color)
+ 172          {
+ 173            u16 t; 
+ 174            int xerr=0,yerr=0,delta_x,delta_y,distance; 
+ 175            int incx,incy,uRow,uCol; 
+ 176          
+ 177            delta_x=x1-x0; //计算坐标增量 
+ 178            delta_y=y1-y0; 
+C51 COMPILER V9.60.0.0   GUI                                                               12/08/2020 22:18:15 PAGE 4   
+
+ 179            uRow=x0; 
+ 180            uCol=y0; 
+ 181            if(delta_x>0)incx=1; //设置单步方向 
+ 182            else if(delta_x==0)incx=0;//垂直线 
+ 183            else {incx=-1;delta_x=-delta_x;} 
+ 184            if(delta_y>0)incy=1; 
+ 185            else if(delta_y==0)incy=0;//水平线 
+ 186            else{incy=-1;delta_y=-delta_y;} 
+ 187            if( delta_x>delta_y)distance=delta_x; //选取基本增量坐标轴 
+ 188            else distance=delta_y; 
+ 189            for(t=0;t<=distance+1;t++ )//画线输出 
+ 190            {  
+ 191              if(size==0)LCD_DrawFRONT_COLOR(uRow,uCol,color);//画点 
+ 192              if(size==1)
+ 193              {
+ 194                LCD_DrawFRONT_COLOR(uRow,uCol,color);//画点 
+ 195                LCD_DrawFRONT_COLOR(uRow+1,uCol,color);//画点 
+ 196                LCD_DrawFRONT_COLOR(uRow,uCol+1,color);//画点 
+ 197                LCD_DrawFRONT_COLOR(uRow+1,uCol+1,color);//画点 
+ 198              }
+ 199              if(size==2)
+ 200              {
+ 201                LCD_DrawFRONT_COLOR(uRow,uCol,color);//画点 
+ 202                LCD_DrawFRONT_COLOR(uRow+1,uCol,color);//画点 
+ 203                LCD_DrawFRONT_COLOR(uRow,uCol+1,color);//画点 
+ 204                LCD_DrawFRONT_COLOR(uRow+1,uCol+1,color);//画点 
+ 205                LCD_DrawFRONT_COLOR(uRow-1,uCol+1,color);//画点 
+ 206                LCD_DrawFRONT_COLOR(uRow+1,uCol-1,color);//画点
+ 207                LCD_DrawFRONT_COLOR(uRow-1,uCol-1,color);//画点  
+ 208                LCD_DrawFRONT_COLOR(uRow-1,uCol,color);//画点 
+ 209                LCD_DrawFRONT_COLOR(uRow,uCol-1,color);//画点  
+ 210              }
+ 211              xerr+=delta_x ; 
+ 212              yerr+=delta_y ; 
+ 213              if(xerr>distance) 
+ 214              { 
+ 215                xerr-=distance; 
+ 216                uRow+=incx; 
+ 217              } 
+ 218              if(yerr>distance) 
+ 219              { 
+ 220                yerr-=distance; 
+ 221                uCol+=incy; 
+ 222              } 
+ 223            }          
+ 224          }
+ 225          //画垂直线
+ 226          //x0,y0:坐标
+ 227          //len:线长度
+ 228          //color:颜色
+ 229          void gui_draw_vline(u16 x0,u16 y0,u16 len,u16 color)
+ 230          {
+ 231            if((len==0)||(x0>tftlcd_data.width)||(y0>tftlcd_data.height))return;
+ 232            LCD_Fill(x0,y0,x0,y0+len-1,color);  
+ 233          }
+ 234          //画水平线
+ 235          //x0,y0:坐标
+ 236          //len:线长度
+ 237          //color:颜色
+ 238          void gui_draw_hline(u16 x0,u16 y0,u16 len,u16 color)
+ 239          {
+ 240            if((len==0)||(x0>tftlcd_data.width)||(y0>tftlcd_data.height))return;
+C51 COMPILER V9.60.0.0   GUI                                                               12/08/2020 22:18:15 PAGE 5   
+
+ 241            LCD_Fill(x0,y0,x0+len-1,y0,color);  
+ 242          }
+ 243          //填充一个色块.
+ 244          //x0,y0,width,height:坐标及填充尺寸
+ 245          //ctbl:颜色表,横向填充时width,纵向填充时大小为height
+ 246          //mode:填充模式(纵向:从左到右,从上到下填充;横向:从上到下,从左到右填充)
+ 247          //[7:1]:保留
+ 248          //[bit0]:0,纵向;1,横向
+ 249          void gui_fill_colorblock(u16 x0,u16 y0,u16 width,u16 height,u16* ctbl,u8 mode)
+ 250          {
+ 251            u16 i;
+ 252            if(height==0||width==0)return;
+ 253            if(mode&0x01)//横向
+ 254            {
+ 255              for(i=0;i<width;i++)
+ 256              {
+ 257                gui_draw_vline(x0+i,y0,height-1,ctbl[i]); 
+ 258              }
+ 259            }else
+ 260            {
+ 261              for(i=0;i<height;i++)
+ 262              {
+ 263                gui_draw_hline(x0,y0+i,width-1,ctbl[i]);  
+ 264              }
+ 265            }
+ 266          }   
+ 267          
+ 268          //将一种颜色平滑过渡到另外一种颜色
+ 269          //srgb,ergb:起始颜色和终止颜色.
+ 270          //cbuf:颜色缓存区(≥len)
+ 271          //len:过渡级数(就是输出的颜色值总数)
+ 272          void gui_smooth_color(u32 srgb,u32 ergb,u16*cbuf,u16 len)
+ 273          {
+ 274            u8 sr,sg,sb;
+ 275            short dr,dg,db;
+ 276            u16 r,g,b;    
+ 277            u16 i=0;
+ 278            sr=srgb>>16;
+ 279            sg=(srgb>>8)&0XFF;
+ 280            sb=srgb&0XFF;
+ 281            dr=(ergb>>16)-sr;
+ 282            dg=((ergb>>8)&0XFF)-sg;
+ 283            db=(ergb&0XFF)-sb;
+ 284            for(i=0;i<len;i++)
+ 285            {
+ 286              r=sr+(dr*i)/len;
+ 287              g=sg+(dg*i)/len;
+ 288              b=sb+(db*i)/len;
+ 289              r>>=3;
+ 290              g>>=2;
+ 291              b>>=3;
+ 292                cbuf[i]=((r<<11)|(g<<5)|b);      
+ 293            }
+ 294          }
+ 295          
+ 296          //画一条平滑过渡的彩色矩形(或线)
+ 297          //x,y,width,height:矩形的坐标尺寸
+ 298          //srgb,ergb:起始和终止的颜色
+ 299          void gui_draw_smooth_rectangle(u16 x,u16 y,u16 width,u16 height,u32 srgb,u32 ergb)
+ 300          {
+ 301            u16 i,j;
+ 302            u16 *colortbl;
+C51 COMPILER V9.60.0.0   GUI                                                               12/08/2020 22:18:15 PAGE 6   
+
+ 303          
+ 304            gui_smooth_color(srgb,ergb,colortbl,width);//获得颜色组
+ 305            for(i=0;i<width;i++)
+ 306            {  
+ 307              for(j=0;j<height;j++)
+ 308              {
+ 309                LCD_DrawFRONT_COLOR(x+i,y+j,colortbl[i]);//画点
+ 310              }
+ 311            }
+ 312          }
+ 313          
+ 314          //画矩形
+ 315          //x0,y0:矩形的左上角坐标
+ 316          //width,height:矩形的尺寸
+ 317          //color:颜色
+ 318          void gui_draw_rectangle(u16 x0,u16 y0,u16 width,u16 height,u16 color)
+ 319          {
+ 320            gui_draw_hline(x0,y0,width,color);
+ 321            gui_draw_hline(x0,y0+height-1,width,color);
+ 322            gui_draw_vline(x0,y0,height,color);
+ 323            gui_draw_vline(x0+width-1,y0,height,color);
+ 324          }
+ 325          //画圆角矩形/填充圆角矩形
+ 326          //x,y,width,height:圆角矩形的位置和尺寸
+ 327          //r:圆角的半径.
+ 328          //mode:0,画矩形框;1,填充矩形.
+ 329          //upcolor:上半部分颜色
+ 330          //downcolor:下半部分颜色
+ 331          void gui_draw_arcrectangle(u16 x,u16 y,u16 width,u16 height,u8 r,u8 mode,u16 upcolor,u16 downcolor)
+ 332          {
+ 333            u16 btnxh=0;
+ 334            if(height%2)btnxh=height+1;//基偶数处理
+ 335            else btnxh=height;
+ 336            if(mode)//填充
+ 337            {
+ 338              gui_fill_rectangle(x+r,y,width-2*r,btnxh/2,upcolor);      //中上
+ 339                gui_fill_rectangle(x+r,y+btnxh/2,width-2*r,btnxh/2,downcolor);  //中下
+ 340              gui_fill_rectangle(x,y+r,r,btnxh/2-r,upcolor);          //左上
+ 341              gui_fill_rectangle(x,y+btnxh/2,r,btnxh/2-r,downcolor);      //左下
+ 342              gui_fill_rectangle(x+width-r,y+r,r,btnxh/2-r,upcolor);      //右上
+ 343              gui_fill_rectangle(x+width-r,y+btnxh/2,r,btnxh/2-r,downcolor);  //右下
+ 344            }else
+ 345            {
+ 346              gui_draw_hline (x+r,y,width-2*r,upcolor);         //上       
+ 347              gui_draw_hline (x+r,y+btnxh-1,width-2*r,downcolor);     //下       
+ 348              gui_draw_vline (x,y+r,btnxh/2-r,upcolor);         //左上       
+ 349              gui_draw_vline (x,y+btnxh/2,btnxh/2-r,downcolor);     //左下       
+ 350              gui_draw_vline (x+width-1,y+r,btnxh/2-r,upcolor);     //右上
+ 351              gui_draw_vline (x+width-1,y+btnxh/2,btnxh/2-r,downcolor); //右下           
+ 352            }
+ 353            gui_draw_arc(x,y,x+r,y+r,x+r,y+r,r,upcolor,mode);//左上 
+ 354            gui_draw_arc(x,y+btnxh-r,x+r,y+btnxh-1,x+r,y+btnxh-r-1,r,downcolor,mode);//左下 
+ 355            gui_draw_arc(x+width-r,y,x+width,y+r,x+width-r-1,y+r,r,upcolor,mode);  //右上
+ 356            gui_draw_arc(x+width-r,y+btnxh-r,x+width,y+btnxh-1,x+width-r-1,y+btnxh-r-1,r,downcolor,mode);//右下
+ 357          }
+ 358          
+ 359          //填充矩形
+ 360          //x0,y0:矩形的左上角坐标
+ 361          //width,height:矩形的尺寸
+ 362          //color:颜色
+ 363          void gui_fill_rectangle(u16 x0,u16 y0,u16 width,u16 height,u16 color)
+ 364          {                    
+C51 COMPILER V9.60.0.0   GUI                                                               12/08/2020 22:18:15 PAGE 7   
+
+ 365            if(width==0||height==0)return;//非法.  
+ 366            LCD_Fill(x0,y0,x0+width-1,y0+height-1,color);        
+ 367          }
+ 368          //画实心圆
+ 369          //x0,y0:坐标
+ 370          //r半径
+ 371          //color:颜色
+ 372          void gui_fill_circle(u16 x0,u16 y0,u16 r,u16 color)
+ 373          {                       
+ 374            u32 i;
+ 375            u32 imax = ((u32)r*707)/1000+1;
+ 376            u32 sqmax = (u32)r*(u32)r+(u32)r/2;
+ 377            u32 x=r;
+ 378            gui_draw_hline(x0-r,y0,2*r,color);
+ 379            for (i=1;i<=imax;i++) 
+ 380            {
+ 381              if ((i*i+x*x)>sqmax) 
+ 382              {
+ 383                // draw lines from outside  
+ 384                if (x>imax) 
+ 385                {
+ 386                  gui_draw_hline (x0-i+1,y0+x,2*(i-1),color);
+ 387                  gui_draw_hline (x0-i+1,y0-x,2*(i-1),color);
+ 388                }
+ 389                x--;
+ 390              }
+ 391              // draw lines from inside (center)  
+ 392              gui_draw_hline(x0-x,y0+i,2*x,color);
+ 393              gui_draw_hline(x0-x,y0-i,2*x,color);
+ 394            }
+ 395          }
+ 396          //在区域内画点
+ 397          //(sx,sy),(ex,ey):设定的显示范围
+ 398          //(x,y):点坐标
+ 399          //color:颜色
+ 400          void gui_draw_expoint(u16 sx,u16 sy,u16 ex,u16 ey,u16 x,u16 y,u16 color)      
+ 401          {
+ 402            u16 tempcolor;
+ 403            if(x<=ex&&x>=sx&&y<=ey&&y>=sy)
+ 404            {
+ 405              tempcolor=FRONT_COLOR;
+ 406              FRONT_COLOR=color;
+ 407              LCD_DrawPoint(x,y);     
+ 408              FRONT_COLOR=tempcolor;
+ 409            }
+ 410          }
+ 411          //画8点(Bresenham算法)      
+ 412          //(sx,sy),(ex,ey):设定的显示范围
+ 413          //(rx,ry,a,b):参数
+ 414          //color:颜色
+ 415          void gui_draw_circle8(u16 sx,u16 sy,u16 ex,u16 ey,u16 rx,u16 ry,int a,int b,u16 color)
+ 416          {
+ 417            gui_draw_expoint(sx,sy,ex,ey,rx+a,ry-b,color);              
+ 418            gui_draw_expoint(sx,sy,ex,ey,rx+b,ry-a,color);                       
+ 419            gui_draw_expoint(sx,sy,ex,ey,rx+b,ry+a,color);                           
+ 420            gui_draw_expoint(sx,sy,ex,ey,rx+a,ry+b,color);             
+ 421            gui_draw_expoint(sx,sy,ex,ey,rx-a,ry+b,color);                  
+ 422            gui_draw_expoint(sx,sy,ex,ey,rx-b,ry+a,color);               
+ 423            gui_draw_expoint(sx,sy,ex,ey,rx-b,ry-a,color);                      
+ 424            gui_draw_expoint(sx,sy,ex,ey,rx-a,ry-b,color);                  
+ 425          }     
+ 426          //在指定位置画一个指定大小的圆
+C51 COMPILER V9.60.0.0   GUI                                                               12/08/2020 22:18:15 PAGE 8   
+
+ 427          //(rx,ry):圆心
+ 428          //(sx,sy),(ex,ey):设定的显示范围
+ 429          //r    :半径
+ 430          //color:颜色
+ 431          //mode :0,不填充;1,填充
+ 432          void gui_draw_arc(u16 sx,u16 sy,u16 ex,u16 ey,u16 rx,u16 ry,u16 r,u16 color,u8 mode)
+ 433          {
+ 434            int a,b,c;
+ 435            int di;   
+ 436            a=0;b=r;    
+ 437            di=3-(r<<1);  //判断下个点位置的标志
+ 438            while(a<=b)
+ 439            {
+ 440              if(mode)for(c=a;c<=b;c++)gui_draw_circle8(sx,sy,ex,ey,rx,ry,a,c,color);//画实心圆
+ 441              else gui_draw_circle8(sx,sy,ex,ey,rx,ry,a,b,color);            //画空心圆
+ 442              a++;
+ 443              //使用Bresenham算法画圆     
+ 444              if(di<0)di +=4*a+6;   
+ 445              else
+ 446              {
+ 447                di+=10+4*(a-b);   
+ 448                b--;
+ 449              }                 
+ 450            }
+ 451          }
+ 452          //画椭圆
+ 453          //x0,y0:坐标
+ 454          //rx:x方向半径
+ 455          //ry:y方向半径
+ 456          //color:椭圆的颜色
+ 457          void gui_draw_ellipse(u16 x0, u16 y0, u16 rx, u16 ry,u16 color) 
+ 458          {
+ 459            u32 OutConst, Sum, SumY;
+ 460            u16 x,y;
+ 461            u16 xOld;
+ 462            u32 _rx = rx;
+ 463            u32 _ry = ry;
+ 464            if(rx>x0||ry>y0)return;//非法.
+ 465            OutConst = _rx*_rx*_ry*_ry+(_rx*_rx*_ry>>1);  // Constant as explaint above 
+ 466            // To compensate for rounding  
+ 467            xOld = x = rx;
+ 468            for (y=0; y<=ry; y++) 
+ 469            {
+ 470              if (y==ry)x=0; 
+ 471              else 
+ 472              {
+ 473                SumY =((u32)(rx*rx))*((u32)(y*y)); // Does not change in loop  
+ 474                while(Sum = SumY + ((u32)(ry*ry))*((u32)(x*x)),(x>0) && (Sum>OutConst)) x--;
+ 475              }
+ 476              // Since we draw lines, we can not draw on the first iteration        
+ 477              if (y) 
+ 478              {
+ 479                gui_draw_line(x0-xOld,y0-y+1,x0-x,y0-y,color);
+ 480                gui_draw_line(x0-xOld,y0+y-1,x0-x,y0+y,color);
+ 481                gui_draw_line(x0+xOld,y0-y+1,x0+x,y0-y,color);
+ 482                gui_draw_line(x0+xOld,y0+y-1,x0+x,y0+y,color);
+ 483              }
+ 484              xOld = x;
+ 485            }
+ 486          }
+ 487          //填充椭圆
+ 488          //x0,y0:坐标
+C51 COMPILER V9.60.0.0   GUI                                                               12/08/2020 22:18:15 PAGE 9   
+
+ 489          //rx:x方向半径
+ 490          //ry:y方向半径
+ 491          //color:椭圆的颜色
+ 492          void gui_fill_ellipse(u16 x0,u16 y0,u16 rx,u16 ry,u16 color) 
+ 493          {
+ 494            u32 OutConst, Sum, SumY;
+ 495            u16 x,y;
+ 496            u32 _rx = rx;
+ 497            u32 _ry = ry;
+ 498            OutConst = _rx*_rx*_ry*_ry+(_rx*_rx*_ry>>1);  // Constant as explaint above  
+ 499            // To compensate for rounding 
+ 500            x = rx;
+ 501            for (y=0; y<=ry; y++) 
+ 502            {
+ 503              SumY =((u32)(rx*rx))*((u32)(y*y)); // Does not change in loop  
+ 504              while (Sum = SumY + ((u32)(ry*ry))*((u32)(x*x)),(x>0) && (Sum>OutConst))x--;    
+ 505              gui_draw_hline(x0-x,y0+y,2*x,color);
+ 506              if(y)gui_draw_hline(x0-x,y0-y,2*x,color);    
+ 507            }
+ 508          }
+ 509          //快速ALPHA BLENDING算法.
+ 510          //src:源颜色
+ 511          //dst:目标颜色
+ 512          //alpha:透明程度(0~32)
+ 513          //返回值:混合后的颜色.
+ 514          u16 gui_alpha_blend565(u16 src,u16 dst,u8 alpha)
+ 515          {
+ 516            u32 src2;
+ 517            u32 dst2;  
+ 518            //Convert to 32bit |-----GGGGGG-----RRRRR------BBBBB|
+ 519            src2=((src<<16)|src)&0x07E0F81F;
+ 520            dst2=((dst<<16)|dst)&0x07E0F81F;   
+ 521            //Perform blending R:G:B with alpha in range 0..32
+ 522            //Note that the reason that alpha may not exceed 32 is that there are only
+ 523            //5bits of space between each R:G:B value, any higher value will overflow
+ 524            //into the next component and deliver ugly result.
+ 525            dst2=((((dst2-src2)*alpha)>>5)+src2)&0x07E0F81F;
+ 526            return (dst2>>16)|dst2;  
+ 527          }  
+ 528          
+ 529          //在中间位置显示一个字符串
+ 530          //x,y,width,height:显示区域坐标.
+ 531          //color:文字颜色.
+ 532          //size:文字大小
+ 533          //str:字符串
+ 534          void gui_show_strmid(u16 x,u16 y,u16 width,u16 height,u16 color,u8 size,u8 *str)
+ 535          {
+ 536            u16 xoff=0,yoff=0;
+ 537            u16 strlenth;
+ 538            u16 strwidth;
+ 539            if(str=='\0')return;
+ 540              strlenth=strlen((const char*)str);  //得到字符串长度
+ 541            strwidth=strlenth*size/2;   //字符串显示占用宽度
+ 542            if(height>size)yoff=(height-size)/2;
+ 543            if(strwidth<=width)//字符串没超过宽度
+ 544            {
+ 545              xoff=(width-strwidth)/2;    
+ 546            }
+ 547            gui_show_ptstr(x+xoff,y+yoff,x+width-1,y+height-1,0,color,size,str,1);  
+ 548          }
+ 549          
+ 550          //在指定地址开始显示一个ASCII字符
+C51 COMPILER V9.60.0.0   GUI                                                               12/08/2020 22:18:15 PAGE 10  
+
+ 551          //x,y:显示开始坐标.
+ 552          //xend,yend:x,y 方向的终点坐标
+ 553          //offset:开始显示的偏移
+ 554          //color:文字颜色.
+ 555          //size:文字大小
+ 556          //chr:字符
+ 557          //mode:0,非叠加显示;1,叠加显示.2,大点叠加(只适用于叠加模式)
+ 558          void gui_show_ptchar(u16 x,u16 y,u16 xend,u16 yend,u16 offset,u16 color,u16 size,u8 chr,u8 mode)
+ 559          {
+ 560              u8 temp;
+ 561              u8 t1,t;
+ 562            u16 tempoff;
+ 563            u16 y0=y;   
+ 564            u16 csize=(size/8+((size%8)?1:0))*(size/2);   //得到字体一个字符对应点阵集所占的字节数             
+ 565            if(chr>' ')chr=chr-' ';//得到偏移后的值
+ 566            else chr=0;//小于空格的一律用空格代替,比如TAB键(键值为9)
+ 567            for(t=0;t<csize;t++)
+ 568            {   
+ 569              switch(size)
+ 570              {
+ 571                case 12:
+ 572                  temp=ascii_1206[chr][t];  //调用1206字体
+ 573                  break;
+ 574                case 16:
+ 575                  temp=ascii_1608[chr][t];    //调用1608字体
+ 576                  break;
+ 577                case 24:
+ 578                  temp=ascii_2412[chr][t];    //调用2412字体
+ 579                  break;
+ 580                default://不支持的字体
+ 581                  return;
+ 582              } 
+ 583              tempoff=offset;
+ 584              if(x>xend)return; //超区域了  
+ 585              if(tempoff==0)  //偏移地址到了 
+ 586              {     
+ 587                for(t1=0;t1<8;t1++)
+ 588                {       
+ 589                  if(y<=yend)
+ 590                  {
+ 591                    if(temp&0x80)
+ 592                    { 
+ 593                      if(mode==0x02)gui_draw_bigpoint(x,y,color);  
+ 594                      else LCD_DrawFRONT_COLOR(x,y,color);
+ 595                    }else if(mode==0)LCD_DrawFRONT_COLOR(x,y,BACK_COLOR); 
+ 596                  }
+ 597                  temp<<=1;
+ 598                  y++;
+ 599                  if((y-y0)==size)
+ 600                  {
+ 601                    y=y0;
+ 602                    x++;
+ 603                    break;
+ 604                  }
+ 605                }
+ 606              }else
+ 607              {
+ 608                  y+=8;
+ 609                  if((y-y0)>=size)//大于一个字的高度了
+ 610                  {
+ 611                    y=y0;   //y坐标归零
+ 612                    tempoff--;   
+C51 COMPILER V9.60.0.0   GUI                                                               12/08/2020 22:18:15 PAGE 11  
+
+ 613                  }
+ 614              }  
+ 615            }                
+ 616          }
+ 617          
+ 618          //显示len个数字
+ 619          //x,y :起点坐标  
+ 620          //len :数字的位数
+ 621          //color:颜色
+ 622          //size:字体大小
+ 623          //num:数值(0~2^64);
+ 624          //mode:模式.
+ 625          //[7]:0,不填充;1,填充0.
+ 626          //[3:0]:0,非叠加显示;1,叠加显示.2,大点叠加(只适用于叠加模式)
+ 627          void gui_show_num(u16 x,u16 y,u8 len,u16 color,u8 size,long num,u8 mode)
+ 628          {           
+ 629            u8 t,temp;
+ 630            u8 enshow=0;               
+ 631            for(t=0;t<len;t++)
+ 632            {
+ 633              temp=(num/gui_pow(10,len-t-1))%10;
+ 634              if(enshow==0&&t<(len-1))
+ 635              {
+ 636                if(temp==0)
+ 637                {
+ 638                  if(mode&0X80)gui_show_ptchar(x+(size/2)*t,y,tftlcd_data.width,tftlcd_data.height,0,color,size,'0',mode
+             -&0xf);//填充0
+ 639                  else gui_show_ptchar(x+(size/2)*t,y,tftlcd_data.width,tftlcd_data.height,0,color,size,' ',mode&0xf);
+ 640                  continue;
+ 641                }else enshow=1; 
+ 642                 
+ 643              }
+ 644              gui_show_ptchar(x+(size/2)*t,y,tftlcd_data.width,tftlcd_data.height,0,color,size,temp+'0',mode&0xf);
+ 645            }
+ 646          }
+ 647          
+ 648          //将数字转为字符串
+ 649          //str:字符串存放地址.
+ 650          //num:数字 
+ 651          u8* gui_num2str(u8*str,u32 num)
+ 652          {
+ 653            u8 t,temp;
+ 654            u8 enrec=0;              
+ 655            for(t=0;t<10;t++)
+ 656            {
+ 657              temp=(num/gui_pow(10,10-t-1))%10;
+ 658              if(enrec==0&&t<9)
+ 659              {
+ 660                if(temp==0)continue;//还不需要记录
+ 661                else enrec=1;     //需要记录了.
+ 662              }
+ 663              *str=temp+'0';
+ 664              str++;
+ 665            }
+ 666            *str='\0';//加入结束符.
+ 667            return str;
+ 668          }
+ 669          
+ 670          //在指定位置开始,显示指定长度范围的字符串.
+ 671          //x,y:显示开始坐标.
+ 672          //xend:x方向的终止坐标
+ 673          //offset:开始显示的偏移
+C51 COMPILER V9.60.0.0   GUI                                                               12/08/2020 22:18:15 PAGE 12  
+
+ 674          //color:文字颜色.
+ 675          //size:文字大小
+ 676          //str:字符串
+ 677          //mode:0,非叠加显示;1,叠加显示,2,大点叠加(只适用于叠加模式)
+ 678          void gui_show_ptstr(u16 x,u16 y,u16 xend,u16 yend,u16 offset,u16 color,u8 size,u8 *str,u8 mode)
+ 679          {
+ 680            u8 bHz=0;       //字符或者中文  
+ 681            u8 EnDisp=0;    //使能显示                                
+ 682              while(*str!=0)  //数据未结束
+ 683              { 
+ 684                  if(!bHz)
+ 685                  {
+ 686                    if(*str>0x80)bHz=1; //中文 
+ 687                    else                //字符
+ 688                    {          
+ 689                  if(EnDisp==0) //还未使能显示
+ 690                  {
+ 691                    if(offset>=size/2)  //超过了一个字符
+ 692                    {
+ 693                      offset-=size/2; //减少一个字符的偏移
+ 694                    }else       //未超过一个字符的偏移
+ 695                    {
+ 696                      offset=offset%(size/2); //得到字符偏移量
+ 697                      EnDisp=1;       //可以开始显示了
+ 698                    }
+ 699                  }
+ 700                  if(EnDisp==1) //使能显示
+ 701                  {
+ 702                    gui_show_ptchar(x,y,xend,yend,offset,color,size,*str,mode);//显示一个字符  
+ 703                        if((xend-x)>size/2)x+=size/2; //字符,为全字的一半
+ 704                    else x+=xend-x;         //未完全显示
+ 705                    if(offset)
+ 706                    {
+ 707                      x-=offset;
+ 708                      offset=0;//清除偏移 
+ 709                        } 
+ 710                  }
+ 711                  if(x>=xend)return;//超过了,退出 
+ 712                  str++; 
+ 713                    }
+ 714                  }else//中文 
+ 715                  {     
+ 716                      bHz=0;//有汉字库 
+ 717                if(EnDisp==0)//还未使能
+ 718                {
+ 719                  if(offset>=size)//超过了一个字
+ 720                  {
+ 721                    offset-=size;//减少
+ 722                  }else
+ 723                  {
+ 724                    offset=offset%(size);//得到字符偏移
+ 725                    EnDisp=1;//可以开始显示了
+ 726                  }
+ 727                }      
+ 728                if(EnDisp)
+ 729                {
+ 730                  //gui_show_ptfont(x,y,xend,yend,offset,color,size,str,mode); //显示这个汉字,空心显示   
+ 731                  if((xend-x)>size)x+=size; //字符,为全字的一半
+ 732                  else x+=xend-x;//未完全显示       
+ 733                  if(offset)
+ 734                  {
+ 735                    x-=offset;
+C51 COMPILER V9.60.0.0   GUI                                                               12/08/2020 22:18:15 PAGE 13  
+
+ 736                    offset=0;//清除偏移 
+ 737                      }   
+ 738                }  
+ 739                if(x>=xend)return;//超过了,退出  
+ 740                    str+=2;  
+ 741                  }            
+ 742              }    
+ 743          }
+ 744          
+ 745          //在指定位置开始,显示指定长度范围的字符串.(带边特效显示)
+ 746          //x,y:显示开始坐标.
+ 747          //width:最大显示宽度
+ 748          //offset:开始显示的偏移
+ 749          //color:文字颜色.
+ 750          //rimcolor:文字边的颜色
+ 751          //size:文字大小
+ 752          //str:字符串
+ 753          void gui_show_ptstrwhiterim(u16 x,u16 y,u16 xend,u16 yend,u16 offset,u16 color,u16 rimcolor,u8 size,u8 *st
+             -r)
+ 754          {
+ 755            gui_show_ptstr(x,y,xend,yend,offset,rimcolor,size,str,2); //先画边(用大号点画)
+ 756            gui_show_ptstr(x,y,xend,yend,offset,color,size,str,1);    //画字(用小点画)
+ 757          }
+ 758          
+ 759          //得到字符串所占的行数
+ 760          //str:字符串指针;
+ 761          //linelenth:每行的长度
+ 762          //font:字体大小
+ 763          //返回值:字符串所占的行数
+ 764          u32 gui_get_stringline(u8*str,u16 linelenth,u8 font)
+ 765          {
+ 766            u16 xpos=0;
+ 767            u32 lincnt=1;//最少就是1行.
+ 768            if(linelenth<font/2)return 0XFFFFFFFF;//无法统计完成
+ 769            while(*str!='\0'&&lincnt!=0xffffffff)
+ 770            {                      
+ 771              if((*str==0x0D&&(*(str+1)==0X0A))||(*str==0X0A))//是回车/换行符
+ 772              { 
+ 773                if(*str==0X0D)str+=2;
+ 774                else str+=1;
+ 775                lincnt++;//行数加1
+ 776                xpos=0;
+ 777              }else if(*str>=0X81&&(*(str+1)>=0X40))//是gbk汉字
+ 778              {
+ 779                xpos+=font;
+ 780                str+=2;
+ 781                if(xpos>linelenth)//已经不在本行之内
+ 782                {
+ 783                  xpos=font;
+ 784                  lincnt++;//行数加1
+ 785                }
+ 786              }else//是字符
+ 787              {
+ 788                xpos+=font/2;
+ 789                str+=1;
+ 790                if(xpos>linelenth)//已经不在本行之内
+ 791                {
+ 792                  xpos=font/2;
+ 793                  lincnt++;//行数加1
+ 794                }       
+ 795              } 
+ 796            }
+C51 COMPILER V9.60.0.0   GUI                                                               12/08/2020 22:18:15 PAGE 14  
+
+ 797            return lincnt;
+ 798          }
+ 799          
+ 800          //在设定区域内显示字符串,超过区域后不再显示
+ 801          //str:字符串指针;
+ 802          //x,y,width,height:显示区域
+ 803          //font:字体大小
+ 804          //fcolor:字体颜色,以叠加方式写字.
+ 805          void gui_show_string(u8*str,u16 x,u16 y,u16 width,u16 height,u8 font,u16 fcolor)
+ 806          {
+ 807            u16 xpos=x;
+ 808            u16 ypos=y;
+ 809            u16 endx=x+width-1;
+ 810            u16 endy=y+height-1;
+ 811            if(width<font/2)return ;//无法显示完成
+ 812            while(*str!='\0')//未结束
+ 813            {   
+ 814              if((*str==0x0D&&(*(str+1)==0X0A))||(*str==0X0A))//是回车/换行符
+ 815              { 
+ 816                if(*str==0X0D)str+=2;
+ 817                else str+=1;
+ 818                xpos=x;
+ 819                ypos+=font;//y增加16
+ 820              }else if(*str>=0X81&&(*(str+1)>=0X40))//是gbk汉字
+ 821              {
+ 822                if((xpos+font)>(endx+1))//已经不在本行之内
+ 823                {
+ 824                  xpos=x;
+ 825                  ypos+=font;
+ 826                }
+ 827                //gui_show_ptfont(xpos,ypos,endx,endy,0,fcolor,font,str,1);
+ 828                xpos+=font;//偏移
+ 829                str+=2;
+ 830          
+ 831              }else//是字符
+ 832              {
+ 833                if((xpos+font/2)>(endx+1))
+ 834                {
+ 835                  xpos=x;
+ 836                  ypos+=font;
+ 837                } 
+ 838                gui_show_ptchar(xpos,ypos,endx,endy,0,fcolor,font,*str,1);       
+ 839                xpos+=font/2;
+ 840                str+=1;       
+ 841              }
+ 842              if(ypos>endy)break;//超过了显示区域了.  
+ 843            }   
+ 844          }
+ 845          
+ 846          #endif
+ 847          */
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   ----    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+C51 COMPILER V9.60.0.0   GUI                                                               12/08/2020 22:18:15 PAGE 15  
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

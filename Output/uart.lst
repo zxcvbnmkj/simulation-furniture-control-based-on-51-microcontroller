@@ -1,0 +1,107 @@
+C51 COMPILER V9.60.0.0   UART                                                              12/08/2020 22:18:14 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE UART
+OBJECT MODULE PLACED IN .\output\uart.obj
+COMPILER INVOKED BY: D:\2filerj\keil5ForC51\C51\BIN\C51.EXE Public\uart.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\User;.
+                    -\Public;.\GUI;.\APP\tftlcd;.\APP\touch) DEBUG OBJECTEXTEND PRINT(.\output\uart.lst) TABS(2) OBJECT(.\output\uart.obj)
+
+line level    source
+
+   1          //不会用到这个文件的代码，把它注释掉了
+   2          /*#include "uart.h"
+   3          
+   4          #define RELOAD_COUNT 0xFA //宏定义波特率发生器的载入值 9600
+   5          
+   6          void UART_Init(void)
+   7          {
+   8            SCON=0X50;      //设置为工作方式1
+   9            TMOD=0X20;      //设置计数器工作方式2
+  10            PCON=0X80;      //波特率加倍
+  11            TH1=RELOAD_COUNT; //计数器初始值设置
+  12            TL1=TH1;
+  13            //ES=1;       //关闭接收中断
+  14            EA=1;       //打开总中断
+  15            TR1=1;        //打开计数器
+  16            TI=1;          //发送中断标记位，如果使用printf函数的必须设置 
+  17          }
+  18          
+  19          void UART_Cmd(FunctionalState ensta)
+  20          {
+  21            ES=ensta; 
+  22          }
+  23          
+  24          void UART_SendData(u8 dat)
+  25          {
+  26            ES=0; //关闭串口中断
+  27            TI=0; //清发送完毕中断请求标志位
+  28            SBUF=dat; //发送
+  29            while(TI==0); //等待发送完毕
+  30            TI=0; //清发送完毕中断请求标志位
+  31            ES=1; //允许串口中断
+  32          }
+  33          
+  34          void UART_SendString(u8 *pbuf)
+  35          {
+  36            while(*pbuf!='\0') //遇到空格跳出循环 
+  37            {
+  38              UART_SendData(*pbuf);
+  39              delay_10us(5);
+  40              pbuf++; 
+  41            }
+  42          }
+  43          
+  44          u8 UART_RX_BUF[UART_REC_LEN];     //接收缓冲,最大UART_REC_LEN个字节.
+  45          //接收状态
+  46          //bit15， 接收完成标志
+  47          //bit14， 接收到0x0d
+  48          //bit13~0， 接收到的有效字节数目
+  49          u16 UART_RX_STA=0;       //接收状态标记 
+  50          
+  51          
+  52          void UART_IRQn() interrupt 4
+  53          {
+  54            u8 r;
+C51 COMPILER V9.60.0.0   UART                                                              12/08/2020 22:18:14 PAGE 2   
+
+  55            
+  56            if(RI)
+  57            {
+  58              RI=0;
+  59              r=SBUF;//读取接收到的数据
+  60              if((UART_RX_STA&0x8000)==0)//接收未完成
+  61              {
+  62                if(UART_RX_STA&0x4000)//接收到了0x0d
+  63                {
+  64                  if(r!=0x0a)UART_RX_STA=0;//接收错误,重新开始
+  65                  else UART_RX_STA|=0x8000; //接收完成了 
+  66                }
+  67                else //还没收到0X0D
+  68                { 
+  69                  if(r==0x0d)UART_RX_STA|=0x4000;
+  70                  else
+  71                  {
+  72                    UART_RX_BUF[UART_RX_STA&0X3FFF]=r ;
+  73                    UART_RX_STA++;
+  74                    if(UART_RX_STA>(UART_REC_LEN-1))UART_RX_STA=0;//接收数据错误,重新开始接收   
+  75                  }    
+  76                }
+  77              }       
+  78            } 
+  79          }
+  80          
+  81          */
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   ----    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
